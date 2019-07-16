@@ -1,0 +1,9 @@
+---
+# role: ansible-role-nfs
+# file: molecule/default/playbook.yml
+
+- name: Converge
+  hosts: all
+  become: True
+  roles:
+    - role: ansible-role-nfs

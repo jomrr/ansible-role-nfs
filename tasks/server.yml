@@ -1,0 +1,38 @@
+---
+# role: ansible-role-nfs
+# file: tasks/server.yml
+
+- name: Install NFS server packages
+  package:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ nfs_server_packages }}"
+
+- name: Create mountpoints when not present
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ nfs_exports[item].owner }}"
+    group: "{{ nfs_exports[item].group }}"
+    mode: "{{ nfs_exports[item].mode }}"
+    modification_time: preserve
+    access_time: preserve
+  loop: "{{ nfs_exports.keys() }}"
+
+- name: Configure /etc/exports
+  template:
+    src: "{{ item }}.j2"
+    dest: "/{{ item }}"
+  loop: [ 'etc/exports' ]
+  notify: Restart NFS
+
+# This only affects NFS < v4 and should be disabled
+- name: Enable service for rpcbind ({{ nfs_rpcbind_enabled }})
+  service:
+    name: "{{ rpcbind_service }}"
+    enabled: "{{ nfs_rpcbind_enabled | bool }}"
+
+- name: Enable {{ nfs_service }}
+  service:
+    name: "{{ nfs_service }}"
+    enabled: yes

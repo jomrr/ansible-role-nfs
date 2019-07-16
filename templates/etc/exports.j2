@@ -1,0 +1,6 @@
+{{ ansible_managed | comment }}
+
+{% for export in nfs_exports %}
+{{ export }}{% for host in nfs_exports[export].hosts %} {{ host }}({{ nfs_exports[export].hosts[host] | join(',') }}){% endfor %}
+
+{% endfor %}

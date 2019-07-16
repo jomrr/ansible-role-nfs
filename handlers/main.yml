@@ -1,0 +1,8 @@
+---
+# role: ansible-role-nfs
+# file: handlers/main.yml
+
+- name: Restart NFS
+  service:
+    name: "{{ nfs_service }}"
+    state: restarted

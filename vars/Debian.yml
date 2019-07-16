@@ -1,0 +1,13 @@
+---
+# role: ansible-role-nfs
+# file: vars/Debian.yml
+
+nfs_client_packages:
+  - nfs-common
+
+nfs_server_packages:
+  - nfs-kernel-server
+
+nfs_service: nfs-utils
+
+rpcbind_service: rpcbind
