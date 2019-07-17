@@ -17,7 +17,7 @@
     mode: "{{ nfs_exports[item].mode }}"
     modification_time: preserve
     access_time: preserve
-  loop: "{{ nfs_exports.keys() }}"
+  loop: "{{ nfs_exports | flatten(levels=1) }}"
 
 - name: Configure /etc/exports
   template:
