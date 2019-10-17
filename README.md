@@ -4,7 +4,9 @@ Ansible role for setting up nfs.
 
 ## Supported Platforms
 
-* Ubuntu 18.04
+* Archlinux
+* CentOS 7
+* Ubuntu 16.04, 18.04
 
 ## Requirements
 
