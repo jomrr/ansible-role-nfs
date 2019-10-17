@@ -19,8 +19,24 @@ Variables for this
 | role_nfs_enabled | False | determine whether role is enabled (True) or not (False) |
 | nfs_client | False | Install and configure NFS Client |
 | nfs_server | False | Install and configure NFS Server |
-| nfs_exports | {} | Exports in the format:<br>'/srv/nfs_export1':<br>owner: root<br>group: root<br>mode: '0750'<br>hosts:<br>127.0.0.1:<br> - rw<br>- async<br>- no_subtree_check<br>- secure |
+| nfs_exports | {} | Exports for NFS Server, see example below table |
 | nfs_rpcbind_enabled | no | Enable RPC Bind |
+
+```yaml
+---
+# nfs_exports example
+nfs_exports:
+    '/srv/nfs_export1':
+        owner: root
+        group: root
+        mode: '0750'
+        hosts:
+            127.0.0.1:
+                - rw
+                - async
+                - no_subtree_check
+                - secure
+```
 
 ## Dependencies
 
