@@ -4,11 +4,11 @@
 
 # The role is disabled by default, so you do not get in trouble.
 # Checked in tasks/main.yml which includes tasks.yml if enabled.
-role_nfs_enabled: false
+role_nfs_enabled: False
 
-nfs_client: false
+nfs_client: False
 
-nfs_server: false
+nfs_server: False
 
 nfs_exports: {}
 
