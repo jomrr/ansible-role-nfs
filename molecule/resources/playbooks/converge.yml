@@ -1,0 +1,8 @@
+---
+# name: jam82.ansible-role-nfs
+# file: molecule/resources/playbooks/converge.yml
+
+- name: "PLAYBOOK | Converge"
+  hosts: all
+  roles:
+    - role: "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}"

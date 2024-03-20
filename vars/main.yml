@@ -1,0 +1,41 @@
+---
+# role: jam82.nfs
+# file: vars/main.yml
+
+nfs_client_packages: "{{ _nfs_client_packages[ansible_os_family] }}"
+
+_nfs_client_packages:
+  Alpine:
+    - nfs-utils
+  Debian:
+    - nfs-common
+  RedHat:
+    - nfs-stats-utils
+    - nfsv4-client-utils
+    - nfs4-acl-tools
+
+nfs_server_packages:
+  Alpine:
+    - nfs-utils
+  Debian:
+    - nfs-kernel-server
+  RedHat:
+    - nfs-utils
+
+nfs_service:
+  Alpine:
+    - nfs
+  Debian:
+    - nfs-utils
+  RedHat:
+    - nfs-server
+
+rpcbind_service:
+  Alpine:
+    - rpcbind
+  Debian:
+    - rpcbind.service
+    - rpcbind.socket
+  RedHat:
+    - rpcbind.service
+    - rpcbind.socket

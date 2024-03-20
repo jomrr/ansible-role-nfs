@@ -2,14 +2,28 @@
 # role: ansible-role-nfs
 # file: defaults/main.yml
 
-# The role is disabled by default, so you do not get in trouble.
-# Checked in tasks/main.yml which includes tasks.yml if enabled.
-role_nfs_enabled: False
+# install client-packages
+nfs_client: true
 
-nfs_client: False
+# install server-packages
+nfs_server: true
 
-nfs_server: False
-
+# nfs-server exports
 nfs_exports: {}
+  # '/srv/nfs_export1':
+  #   owner: root
+  #   group: root
+  #   mode: '0750'
+  #   hosts:
+  #     127.0.0.1:
+  #       - rw
+  #       - async
+  #       - no_subtree_check
+  #       - secure
+  #     127.0.0.2:
+  #       - rw
+  #       - sync
+  #       - secure
 
-nfs_rpcbind_enabled: no
+# nfs-client mounts
+nfs_mounts: {}

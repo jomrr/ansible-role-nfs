@@ -1,162 +1,106 @@
 ---
-# role: ansible-role-ssh
+# name: jam82.ansible-role-nfs
 # file: molecule/all/molecule.yml
 
 dependency:
   name: galaxy
+  requirements-file: meta/requirements.yml
+  role-file: meta/requirements.yml
 driver:
-  name: docker
-lint:
-  name: yamllint
-  options:
-    config-file: molecule/shared/yamllint.yml
-platforms:
-  - name: nfs-amazon
-    image: "jam82/amazon-molecule:latest"
-    command: "/usr/lib/systemd/systemd"
-    pre_build_image: true
-    privileged: true
-    volumes:
-      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
-  - name: nfs-arch
-    image: "jam82/arch-molecule:latest"
-    command: "/usr/lib/systemd/systemd"
-    pre_build_image: true
-    privileged: true
-    volumes:
-      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
-  - name: nfs-centos6
-    image: "jam82/centos-molecule:6"
-    command: "/sbin/init"
-    pre_build_image: true
-    privileged: true
-  - name: nfs-centos7
-    image: "jam82/centos-molecule:7"
-    command: "/usr/lib/systemd/systemd"
-    pre_build_image: true
-    privileged: true
-    volumes:
-      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
-  - name: nfs-debian8
-    image: "jam82/debian-molecule:8"
-    command: "/lib/systemd/systemd"
-    pre_build_image: true
-    privileged: true
-    volumes:
-      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
-  - name: nfs-debian9
-    image: "jam82/debian-molecule:9"
-    command: "/lib/systemd/systemd"
-    pre_build_image: true
-    privileged: true
-    volumes:
-      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
-  - name: nfs-debian10
-    image: "jam82/debian-molecule:10"
-    command: "/lib/systemd/systemd"
-    pre_build_image: true
-    privileged: true
-    volumes:
-      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
-  - name: nfs-debian
-    image: "jam82/debian-molecule:latest"
-    command: "/lib/systemd/systemd"
-    pre_build_image: true
-    privileged: true
-    volumes:
-      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
-  - name: nfs-suse15
-    image: "jam82/suse-molecule:15"
-    command: "/usr/lib/systemd/systemd"
-    pre_build_image: true
-    privileged: true
-    volumes:
-      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
-  - name: ssh-suse
-    image: "jam82/suse-molecule:latest"
-    command: "/usr/lib/systemd/systemd"
-    pre_build_image: true
-    privileged: true
-    volumes:
-      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
-  - name: nfs-suse-tumbleweed
-    image: "jam82/suse-molecule:tumbleweed"
-    command: "/usr/lib/systemd/systemd"
-    pre_build_image: true
-    privileged: true
-    volumes:
-      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
-  - name: nfs-oracle6
-    image: "jam82/oracle-molecule:6"
-    command: "/sbin/init"
-    pre_build_image: true
-    privileged: true
-    volumes:
-      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
-  - name: nfs-oracle7
-    image: "jam82/oracle-molecule:7"
-    command: "/usr/lib/systemd/systemd"
-    pre_build_image: true
-    privileged: true
-    volumes:
-      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
-  - name: nfs-oracle
-    image: "jam82/oracle-molecule:latest"
-    command: "/usr/lib/systemd/systemd"
-    pre_build_image: true
-    privileged: true
-    volumes:
-      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
-  - name: nfs-ubuntu1604
-    image: "jam82/ubuntu-molecule:16.04"
-    command: "/lib/systemd/systemd"
-    pre_build_image: true
-    privileged: true
-    volumes:
-      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
-  - name: nfs-ubuntu1804
-    image: "jam82/ubuntu-molecule:18.04"
-    command: "/lib/systemd/systemd"
-    pre_build_image: true
-    privileged: true
-    volumes:
-      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
-  - name: nfs-ubuntu
-    image: "jam82/ubuntu-molecule:latest"
-    command: "/lib/systemd/systemd"
-    pre_build_image: true
-    privileged: true
-    volumes:
-      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+  name: podman
+lint: set -e; ansible-lint
 provisioner:
-  name: ansible
-  log: true
-  lint:
-    name: ansible-lint
-  playbooks:
-    converge: ../shared/playbook.yml
+  config_options:
+    defaults:
+      callback_whitelist: profile_tasks, timer, yaml
+      interpreter_python: auto_silent
+    ssh_connection:
+      pipelining: true
   inventory:
     group_vars:
       all:
-        role_nfs_enabled: true
+        nfs_client: true
+        nfs_exports: {}
+        nfs_server: true
+  log: true
+  name: ansible
+  playbooks:
+    converge: ../resources/converge.yml
+    verify: ../resources/verify.yml
 scenario:
   name: all
-  test_sequence:
-    - lint
-    - destroy
-    - syntax
-    - create
-    - converge
-    - idempotence
-    - verify
-    - destroy
 verifier:
-  name: testinfra
-  env:
-    PYTHONWARNINGS: "ignore"
-  directory: ../tests
-  options:
-    v: true
-    sudo: true
-  lint:
-    name: flake8
+  name: ansible
+platforms:
+  - name: almalinux-8-nfs
+    image: "docker.io/jam82/molecule-almalinux:8"
+    pre_build_image: true
+    entrypoint: null
+    command: null
+    systemd: true
+  - name: almalinux-9-nfs
+    image: "docker.io/jam82/molecule-almalinux:9"
+    pre_build_image: true
+    entrypoint: null
+    command: null
+    systemd: true
+  - name: alpine-3.18-nfs
+    image: "docker.io/jam82/molecule-alpine:3.18"
+    pre_build_image: true
+    entrypoint: null
+    command: null
+    systemd: true
+  - name: alpine-3.19-nfs
+    image: "docker.io/jam82/molecule-alpine:3.19"
+    pre_build_image: true
+    entrypoint: null
+    command: null
+    systemd: true
+  - name: debian-11-nfs
+    image: "docker.io/jam82/molecule-debian:11"
+    pre_build_image: true
+    entrypoint: null
+    command: null
+    systemd: true
+  - name: debian-12-nfs
+    image: "docker.io/jam82/molecule-debian:12"
+    pre_build_image: true
+    entrypoint: null
+    command: null
+    systemd: true
+  - name: fedora-39-nfs
+    image: "docker.io/jam82/molecule-fedora:39"
+    pre_build_image: true
+    entrypoint: null
+    command: null
+    systemd: true
+  - name: fedora-40-nfs
+    image: "docker.io/jam82/molecule-fedora:40"
+    pre_build_image: true
+    entrypoint: null
+    command: null
+    systemd: true
+  - name: fedora-rawhide-nfs
+    image: "docker.io/jam82/molecule-fedora:rawhide"
+    pre_build_image: true
+    entrypoint: null
+    command: null
+    systemd: true
+  - name: ubuntu-20.04-nfs
+    image: "docker.io/jam82/molecule-ubuntu:20.04"
+    pre_build_image: true
+    entrypoint: null
+    command: null
+    systemd: true
+  - name: ubuntu-22.04-nfs
+    image: "docker.io/jam82/molecule-ubuntu:22.04"
+    pre_build_image: true
+    entrypoint: null
+    command: null
+    systemd: true
+  - name: ubuntu-24.04-nfs
+    image: "docker.io/jam82/molecule-ubuntu:24.04"
+    pre_build_image: true
+    entrypoint: null
+    command: null
+    systemd: true

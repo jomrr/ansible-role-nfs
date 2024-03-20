@@ -1,70 +1,40 @@
 ---
-# role: ansible-role-nfs
+# name: jam82.ansible-role-nfs
 # file: molecule/default/molecule.yml
 
 dependency:
   name: galaxy
+  requirements-file: meta/requirements.yml
+  role-file: meta/requirements.yml
 driver:
-  name: docker
-lint:
-  name: yamllint
-  options:
-    config-file: molecule/shared/yamllint.yml
+  name: podman
+lint: set -e; ansible-lint
 platforms:
-  - name: nfs-default
-    image: ${MOLECULE_DIST:-"jam82/ubuntu-molecule:18.04"}
-    command: ${MOLECULE_DOCKER_CMD:-""}
+  - command: null
+    entrypoint: null
+    image: docker.io/${uns:-jam82}/molecule-${img:-fedora}:${tag:-latest}
+    name: nfs
     pre_build_image: true
-    privileged: true
-    volumes:
-      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+    systemd: true
 provisioner:
-  name: ansible
-  log: true
-  lint:
-    name: ansible-lint
-  playbooks:
-    converge: ../shared/playbook.yml
+  config_options:
+    defaults:
+      callback_whitelist: profile_tasks, timer, yaml
+      interpreter_python: auto_silent
+    ssh_connection:
+      pipelining: true
   inventory:
     group_vars:
       all:
-        role_nfs_enabled: true
-        nfs_server: true
         nfs_client: true
-        nfs_exports:
-          '/srv/nfs_export1':
-            owner: root
-            group: root
-            mode: '0750'
-            hosts:
-              127.0.0.1:
-                - rw
-                - async
-                - no_subtree_check
-                - secure
-              127.0.0.2:
-                - rw
-                - sync
-                - secure
-          '/srv/nfs_export2':
-            owner: root
-            group: root
-            mode: '0750'
-            hosts:
-              127.0.0.1:
-                - r
-                - async
-                - no_subtree_check
-                - secure
+        nfs_exports: {}
+        nfs_server: true
+  log: true
+  name: ansible
+  playbooks:
+    converge: ../resources/converge.yml
+    verify: ../resources/verify.yml
 scenario:
   name: default
 verifier:
-  name: testinfra
-  env:
-    PYTHONWARNINGS: "ignore"
-  directory: ../tests
-  options:
-    v: true
-    sudo: true
-  lint:
-    name: flake8
+  name: ansible

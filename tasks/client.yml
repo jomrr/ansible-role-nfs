@@ -2,8 +2,8 @@
 # role: ansible-role-nfs
 # file: tasks/client.yml
 
-- name: Install NFS client packages
-  package:
+- name: "Install NFS client packages"
+  ansible.builtin.package:
     name: "{{ item }}"
     state: present
   loop: "{{ nfs_client_packages }}"
