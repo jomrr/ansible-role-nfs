@@ -1,5 +1,5 @@
 ---
-# name: jam82.ansible-role-nfs
+# name: jomrr.ansible-role-nfs
 # file: molecule/default/molecule.yml
 
 dependency:
@@ -12,7 +12,7 @@ lint: set -e; ansible-lint
 platforms:
   - command: null
     entrypoint: null
-    image: docker.io/${uns:-jam82}/molecule-${img:-fedora}:${tag:-latest}
+    image: docker.io/${uns:-jomrr}/molecule-${img:-fedora}:${tag:-latest}
     name: nfs
     pre_build_image: true
     systemd: true
