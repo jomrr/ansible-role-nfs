@@ -4,7 +4,7 @@
 
 galaxy_info:
   author: Jonas Mauer
-  description: Configure Kerberos-protected NFSv4 exports and mounts on existing Active Directory members.
+  description: Ansible role for configuring NFSv4 Server and Client.
   galaxy_tags:
     - nfs
     - nfs4

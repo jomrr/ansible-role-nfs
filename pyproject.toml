@@ -1,7 +1,7 @@
 [project]
 name = "nfs"
 version = "0.0.0"
-description = "Configure Kerberos-protected NFSv4 exports and mounts on existing Active Directory members."
+description = "Ansible role for configuring NFSv4 Server and Client."
 requires-python = ">=3.12"
 authors = [
   { name = "Jonas Mauer" },

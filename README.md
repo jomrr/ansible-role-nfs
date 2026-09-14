@@ -6,8 +6,7 @@
 [![dev](https://img.shields.io/github/actions/workflow/status/jomrr/ansible-role-nfs/dev.yml?branch=dev&event=push&label=dev)](https://github.com/jomrr/ansible-role-nfs/actions/workflows/dev.yml?query=branch%3Adev)
 [![main](https://img.shields.io/github/actions/workflow/status/jomrr/ansible-role-nfs/main.yml?branch=main&event=push&label=main)](https://github.com/jomrr/ansible-role-nfs/actions/workflows/main.yml?query=branch%3Amain)
 
-Configure Kerberos-protected NFSv4 exports and mounts on existing Active
-Directory members.
+Ansible role for configuring NFSv4 Server and Client.
 
 ## Purpose
 
@@ -377,4 +376,4 @@ The existing AD membership and user tickets provide client authentication.
 This project is licensed under the MIT License.
 See [LICENSE](LICENSE) for the full license text.
 
-Copyright (c) 2019 Jonas Mauer.
+Copyright (c) 2019-2026 Jonas Mauer.
