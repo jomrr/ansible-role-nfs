@@ -47,8 +47,7 @@ integrity protection, and encryption by default.
 - NFS clients must resolve the server's canonical FQDN and users need valid
   Kerberos tickets. Network policy must permit TCP 2049 and the existing
   Kerberos/DNS services.
-- Kernel NFS server and mount support are required. Rootless containers cannot
-  provide the kernel NFS integration fixture.
+- Running NFS services and mounting exports require kernel NFS support.
 
 ## Dependencies
 
@@ -294,6 +293,9 @@ state, membership credentials, and service state are unchanged.
 
 ## Operational Notes
 
+- Molecule tests Kerberos registration, machine trust, service-ticket
+  decryption, idempotence, and SPN restoration with rootless Podman. NFS
+  services, mounts, and export access controls are outside this test.
 - If the NFS SPN or its keytab entry is missing, adcli update adds it and
   synchronizes Samba credentials. Its native password-age policy can also renew
   an overdue machine password during this operation.

@@ -131,30 +131,14 @@
         type: A
         value: '{{ hostvars[__nfs_test_node].ansible_facts.default_ipv4.address }}'
         state: present
-      loop: '{{ groups["nfs_test_servers"] + groups["nfs_test_clients"] }}'
+      loop: '{{ groups["nfs_test_servers"] }}'
       loop_control:
         loop_var: __nfs_test_node
         label: '{{ __nfs_test_node }}'
       no_log: true
 
-    - name: NFS | Create the existing Kerberos test identity
-      become: true
-      become_user: root
-      jomrr.samba.samba_user:
-        server: nfs-dc.nfs.test
-        realm: NFS.TEST
-        bind_username: Administrator
-        bind_password: '{{ __nfs_test_admin_password }}'
-        username: nfs-writer
-        password: '{{ __nfs_test_user_password }}'
-        uid_number: 21001
-        gid_number: 21000
-        unix_home_directory: /home/nfs-writer
-        login_shell: /bin/bash
-      no_log: true
-
-- name: NFS | Prepare existing member credentials and identities
-  hosts: nfs_test_servers:nfs_test_clients
+- name: NFS | Prepare existing member credentials
+  hosts: nfs_test_servers
   gather_facts: true
   tasks:
 
@@ -168,7 +152,7 @@
         __nfs_test_packages:
           Debian: [adcli, krb5-user, samba-common-bin, python3-samba, samba-dsdb-modules]
           RedHat: [adcli, krb5-workstation, samba-common-tools, python3-samba]
-          Suse: [adcli, krb5-client, samba-client, samba-python3]
+          Suse: [adcli, krb5-client, samba-client, samba-python3, cyrus-sasl-gssapi]
       environment:
         DEBIAN_FRONTEND: noninteractive
 
@@ -245,25 +229,3 @@
         use_kerberos: required
         state: present
       no_log: true
-
-    - name: NFS | Provide consistent existing group identities
-      become: true
-      become_user: root
-      ansible.builtin.group:
-        name: nfs-users
-        gid: 21000
-
-    - name: NFS | Provide consistent existing user identities
-      become: true
-      become_user: root
-      ansible.builtin.user:
-        name: '{{ __nfs_test_user.name }}'
-        uid: '{{ __nfs_test_user.uid }}'
-        group: nfs-users
-        create_home: true
-      loop:
-        - {name: nfs-writer, uid: 21001}
-        - {name: nfs-ticketless, uid: 21002}
-      loop_control:
-        loop_var: __nfs_test_user
-        label: '{{ __nfs_test_user.name }}'

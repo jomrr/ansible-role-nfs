@@ -2,14 +2,21 @@
 # role: nfs
 # file: molecule/resources/playbooks/converge.yml
 
-- name: NFS | Configure servers before clients
+- name: NFS | Register Kerberos credentials
   hosts: nfs_test_servers
-  gather_facts: true
-  roles:
-    - role: '{{ lookup("ansible.builtin.env", "MOLECULE_PROJECT_DIRECTORY") }}'
+  gather_facts: false
+  vars_files:
+    - ../../../vars/main.yml
+  tasks:
 
-- name: NFS | Configure client mounts
-  hosts: nfs_test_clients
-  gather_facts: true
-  roles:
-    - role: '{{ lookup("ansible.builtin.env", "MOLECULE_PROJECT_DIRECTORY") }}'
+    - name: NFS | Register the server identity
+      ansible.builtin.import_tasks: ../../../tasks/kerberos.yml
+
+  handlers:
+
+    - name: NFS | Report service notification
+      ansible.builtin.debug:
+        msg: NFS credentials changed; service activation is outside this test.
+      listen:
+        - reload server credentials
+        - restart client authentication
