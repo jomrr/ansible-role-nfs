@@ -1,0 +1,17 @@
+---
+# role: nfs
+# file: meta/main.yml
+
+galaxy_info:
+  author: Jonas Mauer
+  description: Configure Kerberos-protected NFSv4 exports and mounts on existing Active Directory members.
+  galaxy_tags:
+    - nfs
+    - nfs4
+    - exports
+    - kerberos
+  issue_tracker_url: https://github.com/jomrr/ansible-role-nfs/issues
+  license: MIT
+  min_ansible_version: "2.20"
+  namespace: jomrr
+  role_name: nfs

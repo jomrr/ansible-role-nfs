@@ -1,49 +1,269 @@
 ---
-# name: jomrr.ansible-role-nfs
+# role: nfs
 # file: molecule/resources/playbooks/prepare.yml
 
-- name: "PLAYBOOK | Prepare"
+- name: NFS | Prepare test hosts
   hosts: all
-  become: true
   gather_facts: true
   tasks:
-    - name: "Update apk cache and installed packages"
-      community.general.apk:
-        available: true
-        update_cache: true
-        upgrade: true
-      when: ansible_pkg_mgr == "apk"
 
-    - name: "Update apt cache and installed packages"  # noqa: package-latest
+    - name: NFS | Refresh Debian package metadata
+      become: true
+      become_user: root
       ansible.builtin.apt:
-        force_apt_get: true
-        state: latest
         update_cache: true
-      when: ansible_pkg_mgr == "apt"
+      when: ansible_facts.pkg_mgr == 'apt'
 
-    - name: "Update dnf cache and installed packages"  # noqa: package-latest
-      ansible.builtin.dnf:
-        name: "*"
-        state: latest
-        update_cache: true
-      when: ansible_pkg_mgr == "dnf"
+- name: NFS | Prepare the existing Active Directory fixture
+  hosts: nfs_test_dc
+  gather_facts: true
+  tasks:
 
-    - name: "Update pacman cache and installed packages"
-      community.general.pacman:
-        update_cache: true
-        upgrade: true
-      when: ansible_pkg_mgr == "pacman"
+    - name: NFS | Install the domain controller fixture
+      become: true
+      become_user: root
+      ansible.builtin.package:
+        name: [samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, python3-samba, winbind]
+        state: present
+      environment:
+        DEBIAN_FRONTEND: noninteractive
 
-    - name: "Update yum cache and installed packages"  # noqa: package-latest
-      ansible.builtin.yum:
-        name: "*"
-        state: latest
-        update_cache: true
-      when: ansible_pkg_mgr == "yum"
+    - name: NFS | Keep fixture ID mappings inside the container UID range
+      become: true
+      become_user: root
+      ansible.builtin.replace:
+        path: /usr/share/samba/setup/idmap_init.ldif
+        regexp: '{{ __nfs_test_bound.regexp }}'
+        replace: '{{ __nfs_test_bound.value }}'
+      loop:
+        - {regexp: '^lowerBound: .*', value: 'lowerBound: 10000'}
+        - {regexp: '^upperBound: .*', value: 'upperBound: 60000'}
+      loop_control:
+        loop_var: __nfs_test_bound
+        label: '{{ __nfs_test_bound.value }}'
 
-    - name: "Update zypper cache and installed packages"  # noqa: package-latest
-      community.general.zypper:
-        name: "*"
-        state: latest
-        update_cache: true
-      when: ansible_pkg_mgr == "zypper"
+    - name: NFS | Remove the sample Samba configuration before provisioning
+      become: true
+      become_user: root
+      ansible.builtin.file:
+        path: /etc/samba/smb.conf
+        state: absent
+
+    - name: NFS | Resolve the domain controller's canonical name
+      become: true
+      become_user: root
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^\s*{{ ansible_facts.default_ipv4.address | regex_escape }}\s+'
+        line: '{{ ansible_facts.default_ipv4.address }} nfs-dc.nfs.test nfs-dc'
+        unsafe_writes: true
+
+    - name: NFS | Provision the isolated test realm
+      become: true
+      become_user: root
+      jomrr.samba.samba_provision:
+        realm: NFS.TEST
+        domain: NFSTEST
+        hostname: nfs-dc
+        use_rfc2307: true
+        admin_password: '{{ __nfs_test_admin_password }}'
+      no_log: true
+
+    - name: NFS | Forward external DNS queries
+      become: true
+      become_user: root
+      ansible.builtin.lineinfile:
+        path: /etc/samba/smb.conf
+        insertafter: '^\[global\]'
+        regexp: '^\s*dns forwarder\s*='
+        line: '    dns forwarder = {{ ansible_facts.dns.nameservers | first }}'
+
+    - name: NFS | Stop standalone Samba fixture services
+      become: true
+      become_user: root
+      ansible.builtin.systemd_service:
+        name: '{{ __nfs_test_service }}'
+        state: stopped
+        enabled: false
+        masked: true
+      loop: [smbd, nmbd, winbind]
+      loop_control:
+        loop_var: __nfs_test_service
+        label: '{{ __nfs_test_service }}'
+
+    - name: NFS | Start the domain controller fixture
+      become: true
+      become_user: root
+      ansible.builtin.systemd_service:
+        name: samba-ad-dc
+        state: started
+        enabled: true
+        masked: false
+
+    - name: NFS | Resolve directory services using the test DNS
+      become: true
+      become_user: root
+      ansible.builtin.copy:
+        dest: /etc/resolv.conf
+        content: |
+          nameserver 127.0.0.1
+          search nfs.test
+        owner: root
+        group: root
+        mode: '0644'
+        unsafe_writes: true
+
+    - name: NFS | Wait for the test directory
+      ansible.builtin.wait_for:
+        port: 389
+        timeout: 60
+
+    - name: NFS | Publish existing member DNS identities
+      become: true
+      become_user: root
+      jomrr.samba.samba_dns_record:
+        server: nfs-dc.nfs.test
+        realm: NFS.TEST
+        bind_username: Administrator
+        bind_password: '{{ __nfs_test_admin_password }}'
+        zone: nfs.test
+        name: '{{ __nfs_test_node }}'
+        type: A
+        value: '{{ hostvars[__nfs_test_node].ansible_facts.default_ipv4.address }}'
+        state: present
+      loop: '{{ groups["nfs_test_servers"] + groups["nfs_test_clients"] }}'
+      loop_control:
+        loop_var: __nfs_test_node
+        label: '{{ __nfs_test_node }}'
+      no_log: true
+
+    - name: NFS | Create the existing Kerberos test identity
+      become: true
+      become_user: root
+      jomrr.samba.samba_user:
+        server: nfs-dc.nfs.test
+        realm: NFS.TEST
+        bind_username: Administrator
+        bind_password: '{{ __nfs_test_admin_password }}'
+        username: nfs-writer
+        password: '{{ __nfs_test_user_password }}'
+        uid_number: 21001
+        gid_number: 21000
+        unix_home_directory: /home/nfs-writer
+        login_shell: /bin/bash
+      no_log: true
+
+- name: NFS | Prepare existing member credentials and identities
+  hosts: nfs_test_servers:nfs_test_clients
+  gather_facts: true
+  tasks:
+
+    - name: NFS | Install domain membership fixture packages
+      become: true
+      become_user: root
+      ansible.builtin.package:
+        name: '{{ __nfs_test_packages[ansible_facts.os_family] }}'
+        state: present
+      vars:
+        __nfs_test_packages:
+          Debian: [adcli, krb5-user, samba-common-bin, python3-samba, samba-dsdb-modules]
+          RedHat: [adcli, krb5-workstation, samba-common-tools, python3-samba]
+          Suse: [adcli, krb5-client, samba-client, samba-python3]
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+
+    - name: NFS | Resolve the test realm using AD DNS
+      become: true
+      become_user: root
+      ansible.builtin.copy:
+        dest: /etc/resolv.conf
+        content: |
+          nameserver {{ hostvars['nfs-dc'].ansible_facts.default_ipv4.address }}
+          search nfs.test
+        owner: root
+        group: root
+        mode: '0644'
+        unsafe_writes: true
+
+    - name: NFS | Resolve the canonical member hostname
+      become: true
+      become_user: root
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^\s*{{ ansible_facts.default_ipv4.address | regex_escape }}\s+'
+        line: '{{ ansible_facts.default_ipv4.address }} {{ inventory_hostname }}.nfs.test {{ inventory_hostname }}'
+        unsafe_writes: true
+
+    - name: NFS | Configure existing Kerberos fixture authentication
+      become: true
+      become_user: root
+      ansible.builtin.copy:
+        dest: /etc/krb5.conf
+        content: |
+          [libdefaults]
+              default_realm = NFS.TEST
+              dns_lookup_kdc = true
+              rdns = false
+              default_ccache_name = FILE:/tmp/krb5cc_%{uid}
+          [domain_realm]
+              .nfs.test = NFS.TEST
+              nfs.test = NFS.TEST
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: NFS | Configure the existing Samba membership fixture
+      become: true
+      become_user: root
+      ansible.builtin.copy:
+        dest: /etc/samba/smb.conf
+        content: |
+          [global]
+              security = ADS
+              realm = NFS.TEST
+              workgroup = NFSTEST
+              netbios name = {{ inventory_hostname | upper }}
+              private dir = /var/lib/samba/private
+              client ldap sasl wrapping = seal
+              idmap config * : backend = tdb
+              idmap config * : range = 10000-60000
+              sync machine password to keytab = "/etc/krb5.keytab:spns={{
+                  inventory_hostname | upper }}$@NFS.TEST,host/{{ nfs_host_fqdn }}@NFS.TEST:sync_kvno:machine_password"
+        owner: root
+        group: root
+        mode: '0644'
+        validate: /usr/bin/testparm --suppress-prompt %s
+
+    - name: NFS | Join the fixture using the existing membership interface
+      become: true
+      become_user: root
+      jomrr.samba.samba_join_member:
+        realm: NFS.TEST
+        server: nfs-dc.nfs.test
+        bind_username: Administrator
+        bind_password: '{{ __nfs_test_admin_password }}'
+        use_kerberos: required
+        state: present
+      no_log: true
+
+    - name: NFS | Provide consistent existing group identities
+      become: true
+      become_user: root
+      ansible.builtin.group:
+        name: nfs-users
+        gid: 21000
+
+    - name: NFS | Provide consistent existing user identities
+      become: true
+      become_user: root
+      ansible.builtin.user:
+        name: '{{ __nfs_test_user.name }}'
+        uid: '{{ __nfs_test_user.uid }}'
+        group: nfs-users
+        create_home: true
+      loop:
+        - {name: nfs-writer, uid: 21001}
+        - {name: nfs-ticketless, uid: 21002}
+      loop_control:
+        loop_var: __nfs_test_user
+        label: '{{ __nfs_test_user.name }}'

@@ -1,9 +1,9 @@
 ---
 # role: nfs
-# file: vars/Debian.yml
+# file: vars/Suse.yml
 
-__nfs_client_packages: [nfs-common, krb5-user]
-__nfs_server_packages: [nfs-kernel-server, gssproxy, adcli, samba-common-bin]
+__nfs_client_packages: [nfs-client, krb5-client]
+__nfs_server_packages: [nfs-kernel-server, gssproxy, adcli, samba-client, cyrus-sasl-gssapi]
 __nfs_server_service: nfs-server
 __nfs_mountd_command: /usr/sbin/rpc.mountd --no-tcp --no-udp
 __nfs_mountd_validate: /usr/bin/systemd-analyze verify %s:nfs-mountd.service

@@ -1,0 +1,101 @@
+---
+# role: nfs
+# file: meta/argument_specs.yml
+
+argument_specs:
+  main:
+    short_description: Manage NFSv4 exports, mounts, and the NFS service principal on
+      an existing Samba AD member.
+    options:
+      nfs_client:
+        type: bool
+        default: true
+        description: Install the NFS client and manage declared mounts.
+      nfs_server:
+        type: bool
+        default: false
+        description: Install and run the NFSv4 server and manage /etc/exports exclusively.
+      nfs_realm:
+        type: str
+        required: true
+        description: Existing AD Kerberos realm with working host credentials and identity
+          lookup.
+      nfs_host_fqdn:
+        type: str
+        default: '{{ ansible_facts.fqdn | lower }}'
+        description: Canonical DNS name matching the existing host principal and AD computer
+          account.
+      nfs_security:
+        type: str
+        default: krb5p
+        choices:
+          - krb5
+          - krb5i
+          - krb5p
+        description: Kerberos security flavor required for every managed export and mount;
+          krb5p also encrypts traffic.
+      nfs_rpcbind_enabled:
+        type: bool
+        default: false
+        description: Keep rpcbind available for other RPC applications; NFSv3 remains disabled.
+      nfs_export_owner:
+        type: str
+        default: root
+        description: Default export directory owner; individual exports can override owner.
+      nfs_export_group:
+        type: str
+        default: root
+        description: Default export directory group; individual exports can override group.
+      nfs_export_mode:
+        type: str
+        default: '0750'
+        description: Non-recursive export directory permissions; individual exports can
+          override mode.
+      nfs_export_options:
+        type: list
+        elements: str
+        default:
+          - ro
+          - sync
+          - root_squash
+          - no_subtree_check
+        description: Base export options; per-host options follow these defaults. The sec
+          option is role-owned.
+      nfs_exports:
+        type: dict
+        default: {}
+        description:
+          - Export paths mapped to directory attributes and a required hosts dictionary.
+          - Each hosts key is an allowed client or network; its value is a list of export
+            options.
+          - Optional owner, group, and mode override the corresponding role defaults.
+          - Removing exports revokes access but preserves the directories and stored data.
+      nfs_mount_options:
+        type: list
+        elements: str
+        default:
+          - hard
+          - _netdev
+          - nosuid
+          - nodev
+          - noexec
+        description: Default mount options; per-mount opts replaces this list. Security
+          and NFS version are role-owned.
+      nfs_mount_state:
+        type: str
+        default: mounted
+        choices:
+          - mounted
+          - present
+          - unmounted
+          - absent
+        description: Default state for declared mounts; each mount can override state.
+      nfs_mounts:
+        type: dict
+        default: {}
+        description:
+          - Mount paths mapped to required src, optional opts (list), and optional state.
+          - Use the NFS server's canonical DNS name in src so Kerberos selects its registered
+            principal.
+          - Specify state absent to remove a mount and its fstab entry; removing a dictionary
+            entry leaves it unmanaged.

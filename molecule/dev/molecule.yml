@@ -1,6 +1,6 @@
 ---
 # role: nfs
-# file: molecule/default/molecule.yml
+# file: molecule/dev/molecule.yml
 
 dependency:
   name: "galaxy"
@@ -51,8 +51,18 @@ provisioner:
         nfs_server: false
         nfs_client: true
         nfs_mounts:
-          /mnt/nfs-member:
-            src: "nfs-member.nfs.test:/srv/nfs/projects"
+          /mnt/nfs-alma:
+            src: "nfs-alma.nfs.test:/srv/nfs/projects"
+          /mnt/nfs-debian:
+            src: "nfs-debian.nfs.test:/srv/nfs/projects"
+          /mnt/nfs-fedora:
+            src: "nfs-fedora.nfs.test:/srv/nfs/projects"
+          /mnt/nfs-leap:
+            src: "nfs-leap.nfs.test:/srv/nfs/projects"
+          /mnt/nfs-suse:
+            src: "nfs-suse.nfs.test:/srv/nfs/projects"
+          /mnt/nfs-ubuntu:
+            src: "nfs-ubuntu.nfs.test:/srv/nfs/projects"
 verifier:
   name: "ansible"
 scenario:
@@ -71,7 +81,7 @@ scenario:
     - "idempotence"
     - "verify"
     - "destroy"
-  name: "default"
+  name: "dev"
 platforms:
   - name: "nfs-dc"
     hostname: "nfs-dc.nfs.test"
@@ -83,9 +93,59 @@ platforms:
     network: "nfs-${MOLECULE_SCENARIO_NAME}"
     groups:
       - "nfs_test_dc"
-  - name: "nfs-member"
-    hostname: "nfs-member.nfs.test"
-    image: "docker.io/jomrr/molecule-${img:-fedora}:latest"
+  - name: "nfs-alma"
+    hostname: "nfs-alma.nfs.test"
+    image: "docker.io/jomrr/molecule-almalinux:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    privileged: true
+    network: "nfs-${MOLECULE_SCENARIO_NAME}"
+    groups:
+      - "nfs_test_servers"
+  - name: "nfs-debian"
+    hostname: "nfs-debian.nfs.test"
+    image: "docker.io/jomrr/molecule-debian:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    privileged: true
+    network: "nfs-${MOLECULE_SCENARIO_NAME}"
+    groups:
+      - "nfs_test_servers"
+  - name: "nfs-fedora"
+    hostname: "nfs-fedora.nfs.test"
+    image: "docker.io/jomrr/molecule-fedora:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    privileged: true
+    network: "nfs-${MOLECULE_SCENARIO_NAME}"
+    groups:
+      - "nfs_test_servers"
+  - name: "nfs-leap"
+    hostname: "nfs-leap.nfs.test"
+    image: "docker.io/jomrr/molecule-opensuse-leap:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    privileged: true
+    network: "nfs-${MOLECULE_SCENARIO_NAME}"
+    groups:
+      - "nfs_test_servers"
+  - name: "nfs-suse"
+    hostname: "nfs-suse.nfs.test"
+    image: "docker.io/jomrr/molecule-opensuse-tumbleweed:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    privileged: true
+    network: "nfs-${MOLECULE_SCENARIO_NAME}"
+    groups:
+      - "nfs_test_servers"
+  - name: "nfs-ubuntu"
+    hostname: "nfs-ubuntu.nfs.test"
+    image: "docker.io/jomrr/molecule-ubuntu:latest"
     pre_build_image: true
     override_command: false
     systemd: "true"

@@ -1,25 +1,60 @@
 ---
-# role: ansible-role-nfs
+# role: nfs
 # file: tasks/main.yml
 
-- name: Set os_family dependent variables
-  ansible.builtin.include_vars: '{{ ansible_os_family }}.yml'
+- name: NFS | Load platform settings
+  ansible.builtin.include_vars: '{{ ansible_facts.os_family }}.yml'
 
-- name: Set distribution dependent variables
-  ansible.builtin.include_vars: '{{ vars_file }}'
-  with_first_found:
-    - files:
-        - '{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yml'
-        - '{{ ansible_distribution }}.yml'
-        - '{{ ansible_os_family }}-{{ ansible_distribution_major_version }}.yml'
-      skip: true
-  loop_control:
-    loop_var: vars_file
+- name: NFS | Check role settings
+  ansible.builtin.import_tasks: assert.yml
 
-- name: Include tasks for NFS client
-  ansible.builtin.include_tasks: client.yml
-  when: nfs_client | bool
+- name: NFS | Install NFS and Kerberos components
+  become: true
+  become_user: root
+  ansible.builtin.package:
+    name: '{{ __nfs_client_packages + (nfs_server | ternary(__nfs_server_packages, [])) }}'
+    state: present
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  when: nfs_client or nfs_server
 
-- name: Include tasks for NFS server
-  ansible.builtin.include_tasks: server.yml
-  when: nfs_server | bool
+- name: NFS | Register the server identity
+  ansible.builtin.import_tasks: kerberos.yml
+  when: nfs_server
+
+- name: NFS | Configure NFSv4 and client authentication
+  ansible.builtin.import_tasks: configure.yml
+  when: nfs_client or nfs_server
+
+- name: NFS | Configure the server
+  ansible.builtin.import_tasks: server.yml
+  when: nfs_server
+
+- name: NFS | Configure Kerberos-protected exports
+  become: true
+  become_user: root
+  ansible.builtin.template:
+    src: etc/exports.j2
+    dest: /etc/exports
+    owner: root
+    group: root
+    mode: '0640'
+    backup: true
+  notify: reload exports
+  when: nfs_server
+
+- name: NFS | Activate configuration before serving and mounting
+  ansible.builtin.meta: flush_handlers
+
+- name: NFS | Enable and start the server
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    name: '{{ __nfs_server_service }}'
+    enabled: true
+    state: started
+  when: nfs_server
+
+- name: NFS | Manage client mounts
+  ansible.builtin.import_tasks: client.yml
+  when: nfs_client

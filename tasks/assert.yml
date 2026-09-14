@@ -1,0 +1,40 @@
+---
+# role: nfs
+# file: tasks/assert.yml
+
+- name: NFS | Check hostname, realm and default options
+  ansible.builtin.assert:
+    that:
+      - nfs_host_fqdn is match('^[a-z0-9][a-z0-9.-]*\.[a-z0-9-]+$')
+      - nfs_realm is match('^[A-Za-z0-9][A-Za-z0-9.-]+$')
+      - nfs_export_options | select('search', '(^|,)sec=|[\s()]') | list | length == 0
+      - nfs_mount_options | select('search', '(^|,)(sec|vers|nfsvers)=|[\s()]') | list | length == 0
+    quiet: true
+    fail_msg: Hostname and realm must identify the existing AD membership; sec and NFS versions are role-owned.
+
+- name: NFS | Check export paths and options
+  ansible.builtin.assert:
+    that:
+      - __nfs_export.key is abs
+      - __nfs_export.key is not search('[\s"\\\\]')
+      - __nfs_export.value.hosts | length > 0
+      - __nfs_export.value.hosts.keys() | select('search', '[\s()]') | list | length == 0
+      - __nfs_export.value.hosts.values() | flatten | select('search', '(^|,)sec=|[\s()]') | list | length == 0
+    quiet: true
+    fail_msg: Exports require absolute unambiguous paths, explicit clients, and options without a sec override.
+  loop: '{{ nfs_exports | dict2items }}'
+  loop_control:
+    loop_var: __nfs_export
+    label: '{{ __nfs_export.key }}'
+
+- name: NFS | Check mount paths and options
+  ansible.builtin.assert:
+    that:
+      - __nfs_mount.key is abs
+      - __nfs_mount.value.opts | default(nfs_mount_options) | select('search', '(^|,)(sec|vers|nfsvers)=|[\s()]') | list | length == 0
+    quiet: true
+    fail_msg: Mounts require absolute paths and cannot override the managed security flavor or NFS version.
+  loop: '{{ nfs_mounts | dict2items }}'
+  loop_control:
+    loop_var: __nfs_mount
+    label: '{{ __nfs_mount.key }}'

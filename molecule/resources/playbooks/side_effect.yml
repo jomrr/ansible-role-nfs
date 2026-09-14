@@ -1,0 +1,64 @@
+---
+# role: nfs
+# file: molecule/resources/playbooks/side_effect.yml
+
+- name: NFS | Change permissions on existing exports
+  hosts: nfs_test_servers
+  gather_facts: true
+  tasks:
+
+    - name: NFS | Make existing exports read-only
+      ansible.builtin.include_role:
+        name: '{{ lookup("ansible.builtin.env", "MOLECULE_PROJECT_DIRECTORY") }}'
+      vars:
+        nfs_exports:
+          /srv/nfs/projects:
+            group: nfs-users
+            mode: '2770'
+            hosts:
+              '*': [ro]
+
+- name: NFS | Verify that changed permissions took effect
+  hosts: nfs_test_clients
+  gather_facts: false
+  tasks:
+
+    - name: NFS | Reject writes on the existing authenticated mounts
+      become: true
+      become_user: root
+      ansible.builtin.command:
+        argv: [runuser, -u, nfs-writer, --, tee, '/mnt/{{ __nfs_test_server }}/permission-change']
+        stdin: This write must be rejected
+      register: __nfs_readonly_write
+      changed_when: false
+      failed_when: __nfs_readonly_write.rc == 0
+      loop: '{{ groups["nfs_test_servers"] }}'
+      loop_control:
+        loop_var: __nfs_test_server
+        label: '{{ __nfs_test_server }}'
+
+- name: NFS | Remove server identity and stop the service before reconverging
+  hosts: nfs_test_servers
+  gather_facts: true
+  tasks:
+
+    - name: NFS | Remove the NFS identity while retaining machine credentials
+      become: true
+      become_user: root
+      ansible.builtin.command:
+        argv:
+          - adcli
+          - update
+          - --host-keytab=/etc/krb5.keytab
+          - '--host-fqdn={{ nfs_host_fqdn }}'
+          - '--remove-service-principal=nfs/{{ nfs_host_fqdn }}'
+          - --add-samba-data
+      changed_when: true
+      no_log: true
+
+    - name: NFS | Stop the existing NFS server
+      become: true
+      become_user: root
+      ansible.builtin.systemd_service:
+        name: nfs-server
+        state: stopped

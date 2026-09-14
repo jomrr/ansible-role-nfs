@@ -1,12 +1,106 @@
 ---
-# name: jomrr.ansible-role-nfs
+# role: nfs
 # file: molecule/resources/playbooks/verify.yml
 
-- name: "PLAYBOOK | Verify"
-  hosts: all
+- name: NFS | Verify authenticated file access
+  hosts: nfs_test_clients
   gather_facts: false
   tasks:
-    - name: "Assert true"
+
+    - name: NFS | Obtain the user's Kerberos ticket
+      become: true
+      become_user: root
+      ansible.builtin.command:
+        argv: [runuser, -u, nfs-writer, --, kinit, nfs-writer@NFS.TEST]
+        stdin: '{{ __nfs_test_user_password }}'
+      changed_when: true
+      no_log: true
+
+    - name: NFS | Write through each authenticated mount
+      become: true
+      become_user: root
+      ansible.builtin.command:
+        argv: [runuser, -u, nfs-writer, --, tee, '/mnt/{{ __nfs_test_server }}/kerberos-proof']
+        stdin: Kerberos NFS integration verified
+      changed_when: true
+      loop: '{{ groups["nfs_test_servers"] }}'
+      loop_control:
+        loop_var: __nfs_test_server
+        label: '{{ __nfs_test_server }}'
+
+    - name: NFS | Reject access from a user without a ticket
+      become: true
+      become_user: root
+      ansible.builtin.command:
+        argv: [runuser, -u, nfs-ticketless, --, cat, '/mnt/{{ __nfs_test_server }}/kerberos-proof']
+      register: __nfs_ticketless
+      failed_when: __nfs_ticketless.rc == 0
+      changed_when: false
+      loop: '{{ groups["nfs_test_servers"] }}'
+      loop_control:
+        loop_var: __nfs_test_server
+        label: '{{ __nfs_test_server }}'
+
+    - name: NFS | Create the negative mount test directory
+      become: true
+      become_user: root
+      ansible.builtin.file:
+        path: /mnt/nfs-negative
+        state: directory
+        mode: '0755'
+
+    - name: NFS | Reject AUTH_SYS mounts
+      become: true
+      become_user: root
+      ansible.builtin.command:
+        argv:
+          - mount
+          - -t
+          - nfs
+          - -o
+          - vers=4,sec=sys,ro,retry=0
+          - '{{ __nfs_test_server }}.nfs.test:/srv/nfs/projects'
+          - /mnt/nfs-negative
+      register: __nfs_sys_mount
+      changed_when: false
+      failed_when: __nfs_sys_mount.rc == 0
+      loop: '{{ groups["nfs_test_servers"] }}'
+      loop_control:
+        loop_var: __nfs_test_server
+        label: '{{ __nfs_test_server }}'
+
+- name: NFS | Verify server-side identity and protocol behavior
+  hosts: nfs_test_servers
+  gather_facts: false
+  tasks:
+
+    - name: NFS | Read data written by the authenticated client
+      become: true
+      become_user: root
+      ansible.builtin.command:
+        argv: [cat, /srv/nfs/projects/kerberos-proof]
+      register: __nfs_written_data
+      changed_when: false
+
+    - name: NFS | Read the effective file owner
+      become: true
+      become_user: root
+      ansible.builtin.stat:
+        path: /srv/nfs/projects/kerberos-proof
+      register: __nfs_written_file
+
+    - name: NFS | Read the active kernel protocol versions
+      ansible.builtin.command:
+        argv: [cat, /proc/fs/nfsd/versions]
+      register: __nfs_versions
+      changed_when: false
+
+    - name: NFS | Assert authenticated identity and NFSv4-only operation
       ansible.builtin.assert:
-        that: "true"
-        fail_msg: "This should never fail"
+        that:
+          - __nfs_written_data.stdout == 'Kerberos NFS integration verified'
+          - __nfs_written_file.stat.uid == 21001
+          - __nfs_written_file.stat.gid == 21000
+          - "'+3' not in __nfs_versions.stdout.split()"
+          - "'+4' in __nfs_versions.stdout.split()"
+        quiet: true

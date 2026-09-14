@@ -1,29 +1,54 @@
 ---
-# role: ansible-role-nfs
+# role: nfs
 # file: defaults/main.yml
 
-# install client-packages
+# Install the NFS client and manage declared mounts.
 nfs_client: true
 
-# install server-packages
-nfs_server: true
+# Install and run the NFSv4 server and manage /etc/exports exclusively.
+nfs_server: false
 
-# nfs-server exports
+# Existing AD Kerberos realm, with working host credentials and identity lookup.
+# nfs_realm: AD.EXAMPLE.COM
+
+# Canonical DNS name matching the existing host principal and AD computer account.
+nfs_host_fqdn: '{{ ansible_facts.fqdn | lower }}'
+
+# Kerberos security flavor required for every managed export and mount.
+nfs_security: krb5p
+
+# Keep rpcbind available for other RPC applications; NFSv3 remains disabled.
+nfs_rpcbind_enabled: false
+
+# Default export directory owner; individual exports can override owner.
+nfs_export_owner: root
+
+# Default export directory group; individual exports can override group.
+nfs_export_group: root
+
+# Non-recursive export directory permissions; individual exports can override mode.
+nfs_export_mode: '0750'
+
+# Base export options; per-host options follow these defaults. sec is role-owned.
+nfs_export_options: [ro, sync, root_squash, no_subtree_check]
+
+# Export paths mapped to directory attributes and host-to-option-list mappings.
 nfs_exports: {}
-  # '/srv/nfs_export1':
-  #   owner: root
-  #   group: root
-  #   mode: '0750'
-  #   hosts:
-  #     127.0.0.1:
-  #       - rw
-  #       - async
-  #       - no_subtree_check
-  #       - secure
-  #     127.0.0.2:
-  #       - rw
-  #       - sync
-  #       - secure
+# nfs_exports:
+#   /srv/nfs/projects:
+#     group: 'file-writers@ad.example.com'
+#     mode: '2770'
+#     hosts:
+#       192.0.2.0/24: [rw]
 
-# nfs-client mounts
+# Default client mount options; per-mount opts replaces this list. sec and vers are role-owned.
+nfs_mount_options: [hard, _netdev, nosuid, nodev, noexec]
+
+# Default state for declared mounts; each mount can override state.
+nfs_mount_state: mounted
+
+# Mount paths mapped to src, optional opts (list), and optional state.
 nfs_mounts: {}
+# nfs_mounts:
+#   /mnt/projects:
+#     src: files.ad.example.com:/srv/nfs/projects

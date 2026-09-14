@@ -1,0 +1,75 @@
+---
+# role: nfs
+# file: tasks/kerberos.yml
+
+- name: NFS | Read the computer service principals
+  become: true
+  become_user: root
+  ansible.builtin.command:
+    argv: [net, ads, setspn, list, --machine-pass, --use-kerberos=required]
+  register: __nfs_ad_spns
+  changed_when: false
+  check_mode: false
+
+- name: NFS | Read the system keytab
+  become: true
+  become_user: root
+  ansible.builtin.command:
+    argv: [klist, -k, /etc/krb5.keytab]
+  register: __nfs_keytab
+  changed_when: false
+  check_mode: false
+
+- name: NFS | Require the existing host credentials
+  ansible.builtin.assert:
+    that:
+      - __nfs_host_principal in __nfs_keytab.stdout.split()
+    quiet: true
+    fail_msg: The existing /etc/krb5.keytab must contain host/FQDN credentials for nfs_realm.
+
+- name: NFS | Register the NFS service principal and keys
+  become: true
+  become_user: root
+  ansible.builtin.command:
+    argv:
+      - adcli
+      - update
+      - --host-keytab=/etc/krb5.keytab
+      - '--host-fqdn={{ nfs_host_fqdn }}'
+      - '--add-service-principal={{ __nfs_spn }}'
+      - --add-samba-data
+  register: __nfs_key_update
+  changed_when: true
+  failed_when: >-
+    __nfs_key_update.rc != 0 or
+    'Failed to add Samba specific data' in __nfs_key_update.stderr
+  environment:
+    LC_ALL: C
+  no_log: true
+  when: >-
+    __nfs_spn | lower not in (__nfs_ad_spns.stdout | lower).split() or
+    __nfs_principal not in __nfs_keytab.stdout.split()
+  notify:
+    - reload server credentials
+    - restart client authentication
+
+- name: NFS | Verify the NFS service principal on the computer account
+  become: true
+  become_user: root
+  ansible.builtin.command:
+    argv: [net, ads, setspn, list, --machine-pass, --use-kerberos=required]
+  register: __nfs_verified_spns
+  changed_when: false
+  failed_when: >-
+    __nfs_verified_spns.rc != 0 or
+    __nfs_spn | lower not in (__nfs_verified_spns.stdout | lower).split()
+  when: not ansible_check_mode
+
+- name: NFS | Protect the machine keytab
+  become: true
+  become_user: root
+  ansible.builtin.file:
+    path: /etc/krb5.keytab
+    owner: root
+    group: root
+    mode: '0600'

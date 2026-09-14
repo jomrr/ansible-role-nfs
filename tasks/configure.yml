@@ -1,0 +1,42 @@
+---
+# role: nfs
+# file: tasks/configure.yml
+
+- name: NFS | Create the NFS configuration directory
+  become: true
+  become_user: root
+  ansible.builtin.file:
+    path: /etc/nfs.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: NFS | Configure NFSv4 and Kerberos credentials
+  become: true
+  become_user: root
+  ansible.builtin.template:
+    src: etc/nfs.conf.j2
+    dest: /etc/nfs.conf.d/90-nfs.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: true
+  notify:
+    - restart client authentication
+    - restart server
+
+- name: NFS | Enable the NFS client dependencies
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    name: nfs-client.target
+    enabled: true
+    state: started
+
+- name: NFS | Start client Kerberos authentication
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    name: rpc-gssd.service
+    state: started

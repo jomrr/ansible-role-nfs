@@ -1,3 +1,9 @@
 ---
-# role: ansible-role-nfs
+# role: nfs
 # file: vars/RedHat.yml
+
+__nfs_client_packages: [nfs-utils, krb5-workstation]
+__nfs_server_packages: [nfs-utils, gssproxy, adcli, samba-common-tools]
+__nfs_server_service: nfs-server
+__nfs_mountd_command: /usr/sbin/rpc.mountd --no-tcp --no-udp
+__nfs_mountd_validate: /usr/bin/systemd-analyze verify %s:nfs-mountd.service

@@ -1,39 +1,84 @@
 ---
-# role: ansible-role-nfs
+# role: nfs
 # file: tasks/server.yml
 
-- name: "Install NFS server packages"
-  ansible.builtin.package:
-    name: "{{ item }}"
-    state: present
-  loop: "{{ nfs_server_packages }}"
-
-- name: "Create NFS mountpoints"
+- name: NFS | Create export directories
+  become: true
+  become_user: root
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: '{{ __nfs_export.key }}'
     state: directory
-    owner: "{{ nfs_exports[item].owner }}"
-    group: "{{ nfs_exports[item].group }}"
-    mode: "{{ nfs_exports[item].mode }}"
-    modification_time: preserve
-    access_time: preserve
-  loop: "{{ nfs_exports | flatten(levels=1) }}"
+    owner: '{{ __nfs_export.value.owner | default(nfs_export_owner) }}'
+    group: '{{ __nfs_export.value.group | default(nfs_export_group) }}'
+    mode: '{{ __nfs_export.value.mode | default(nfs_export_mode) }}'
+  loop: '{{ nfs_exports | dict2items }}'
+  loop_control:
+    loop_var: __nfs_export
+    label: '{{ __nfs_export.key }}'
 
-- name: "Configure /etc/exports"
+- name: NFS | Create the mount daemon override directory
+  become: true
+  become_user: root
+  ansible.builtin.file:
+    path: /etc/systemd/system/nfs-mountd.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: NFS | Disable NFSv3 mount listeners
+  become: true
+  become_user: root
   ansible.builtin.template:
-    src: "{{ item }}.j2"
-    dest: "/{{ item }}"
-    mode: '0640'
-  loop: ['etc/exports']
-  notify: Restart NFS
+    src: etc/nfs-mountd.conf.j2
+    dest: /etc/systemd/system/nfs-mountd.service.d/90-nfs.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: true
+    validate: '{{ __nfs_mountd_validate }}'
+  notify:
+    - reload systemd
+    - restart server
 
-# This only affects NFS < v4 and should be disabled
-- name: "Enable {{ rpcbind_service }}"
-  ansible.builtin.service:
-    name: "{{ rpcbind_service }}"
-    enabled: "{{ nfs_rpcbind_enabled | bool }}"
+- name: NFS | Configure the server credential provider
+  become: true
+  become_user: root
+  ansible.builtin.template:
+    src: etc/gssproxy.conf.j2
+    dest: /etc/gssproxy/24-nfs-server.conf
+    owner: root
+    group: root
+    mode: '0600'
+    backup: true
+  notify: reload server credentials
 
-- name: "Enable {{ nfs_service }}"
-  ansible.builtin.service:
-    name: "{{ nfs_service }}"
+- name: NFS | Enable and start the server credential provider
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    name: gssproxy.service
     enabled: true
+    state: started
+
+- name: NFS | Apply the rpcbind policy
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    name: '{{ __nfs_rpc_unit }}'
+    enabled: '{{ nfs_rpcbind_enabled }}'
+    masked: '{{ not nfs_rpcbind_enabled }}'
+    state: '{{ nfs_rpcbind_enabled | ternary("started", "stopped") }}'
+  loop: [rpcbind.socket, rpcbind.service]
+  loop_control:
+    loop_var: __nfs_rpc_unit
+    label: '{{ __nfs_rpc_unit }}'
+
+- name: NFS | Disable the NFSv3 status service
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    name: rpc-statd.service
+    enabled: false
+    masked: true
+    state: stopped

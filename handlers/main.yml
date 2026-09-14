@@ -1,8 +1,43 @@
 ---
-# role: ansible-role-nfs
+# role: nfs
 # file: handlers/main.yml
 
-- name: Restart NFS
-  ansible.builtin.service:
-    name: "{{ nfs_service }}"
+- name: NFS | Reload systemd units
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  listen: reload systemd
+
+- name: NFS | Reload server credentials
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    name: gssproxy.service
+    state: reloaded
+  listen: reload server credentials
+
+- name: NFS | Restart client authentication
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    name: rpc-gssd.service
     state: restarted
+  listen: restart client authentication
+
+- name: NFS | Restart the server after protocol changes
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    name: '{{ __nfs_server_service }}'
+    state: restarted
+  when: nfs_server
+  listen: restart server
+
+- name: NFS | Activate changed exports
+  become: true
+  become_user: root
+  ansible.builtin.command:
+    argv: [exportfs, -ra]
+  changed_when: true
+  listen: reload exports

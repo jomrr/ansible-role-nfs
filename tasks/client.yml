@@ -1,9 +1,18 @@
 ---
-# role: ansible-role-nfs
+# role: nfs
 # file: tasks/client.yml
 
-- name: "Install NFS client packages"
-  ansible.builtin.package:
-    name: "{{ item }}"
-    state: present
-  loop: "{{ nfs_client_packages }}"
+- name: NFS | Manage authenticated NFSv4 mounts
+  become: true
+  become_user: root
+  ansible.posix.mount:
+    path: '{{ __nfs_mount.key }}'
+    src: '{{ __nfs_mount.value.src }}'
+    fstype: nfs
+    opts: '{{ ((__nfs_mount.value.opts | default(nfs_mount_options)) + ["vers=4", "sec=" ~ nfs_security]) | join(",") }}'
+    state: '{{ __nfs_mount.value.state | default(nfs_mount_state) }}'
+    backup: true
+  loop: '{{ nfs_mounts | dict2items }}'
+  loop_control:
+    loop_var: __nfs_mount
+    label: '{{ __nfs_mount.key }}'

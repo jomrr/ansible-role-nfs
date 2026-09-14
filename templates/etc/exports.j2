@@ -1,6 +1,7 @@
-{{ ansible_managed | comment }}
+# Managed by ansible.
+# file: {{ template_destpath }}
 
-{% for export in nfs_exports %}
-{{ export }}{% for host in nfs_exports[export].hosts %} {{ host }}({{ nfs_exports[export].hosts[host] | join(',') }}){% endfor %}
+{% for __nfs_path, __nfs_export in nfs_exports.items() %}
+{{ __nfs_path }}{% for __nfs_host, __nfs_options in __nfs_export.hosts.items() %} {{ __nfs_host }}({{ (nfs_export_options + __nfs_options + ['sec=' ~ nfs_security]) | join(',') }}){% endfor %}
 
 {% endfor %}
