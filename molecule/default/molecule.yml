@@ -15,26 +15,25 @@ provisioner:
     defaults:
       forks: 8
       interpreter_python: "auto_silent"
-      allow_world_readable_tmpfiles: true
       callbacks_enabled: "ansible.builtin.default"
       callback_result_format: "yaml"
-      remote_tmp: "/tmp/.ansible/tmp"
-    ssh_connection:
+    connection:
       pipelining: true
-  log: true
-  playbooks:
-    converge: "../resources/playbooks/converge.yml"
-    verify: "../resources/playbooks/verify.yml"
-    prepare: "../resources/playbooks/prepare.yml"
-    side_effect: "../resources/playbooks/side_effect.yml"
-  connection_options:
-    ansible_user: "molecule"
   inventory:
     group_vars:
       all:
+        ansible_podman_mount_detection: false
         nfs_realm: "NFS.TEST"
         nfs_host_fqdn: "{{ inventory_hostname }}.nfs.test"
         __nfs_test_admin_password: "Molecule-Only-Adm1n!"
+  log: true
+  playbooks:
+    prepare: "../resources/playbooks/prepare.yml"
+    converge: "../resources/playbooks/converge.yml"
+    verify: "../resources/playbooks/verify.yml"
+    side_effect: "../resources/playbooks/side_effect.yml"
+  connection_options:
+    ansible_user: "molecule"
 verifier:
   name: "ansible"
 scenario:

@@ -36,8 +36,8 @@ integrity protection, and encryption by default.
 ## Requirements
 
 - Hosts must already have working AD Kerberos authentication and consistent
-  user/group lookup. For example, apply jomrr.samba_ad_sssd first, using
-  /etc/krb5.keytab and the same canonical FQDN.
+  user/group lookup. For example, apply jomrr.sssd first, using /etc/krb5.keytab
+  and the same canonical FQDN.
 - Servers require an existing Samba machine trust in /etc/samba/smb.conf and
   secrets.tdb, and host/FQDN@REALM keys in /etc/krb5.keytab. The machine account
   needs permission to add its own NFS SPN.
@@ -328,7 +328,7 @@ state, membership credentials, and service state are unchanged.
 
 ### Kerberos-protected file server
 
-Apply after the host has joined AD, for example with jomrr.samba_ad_sssd.
+Apply after the host has joined AD, for example with jomrr.sssd.
 
 ```yaml
 - name: Configure NFS exports
