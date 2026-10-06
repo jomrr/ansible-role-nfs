@@ -42,12 +42,31 @@
         loop_var: __nfs_test_bound
         label: '{{ __nfs_test_bound.value }}'
 
-    - name: NFS | Remove the sample Samba configuration before provisioning
+    - name: NFS | Configure the rootless test domain controller
       become: true
       become_user: root
-      ansible.builtin.file:
-        path: /etc/samba/smb.conf
-        state: absent
+      ansible.builtin.copy:
+        dest: /etc/samba/smb.conf
+        content: |
+          [global]
+              server role = active directory domain controller
+              realm = NFS.TEST
+              workgroup = NFSTEST
+              netbios name = NFS-DC
+              dns forwarder = {{ ansible_facts.dns.nameservers | first }}
+              # Store test DC ACLs in Samba's database for rootless Podman.
+              vfs objects = dfs_samba4 acl_xattr xattr_tdb
+              xattr_tdb:file = /var/lib/samba/private/xattr.tdb
+          [sysvol]
+              path = /var/lib/samba/sysvol
+              read only = no
+          [netlogon]
+              path = /var/lib/samba/sysvol/nfs.test/scripts
+              read only = no
+        owner: root
+        group: root
+        mode: '0644'
+        validate: /usr/bin/testparm --suppress-prompt %s
 
     - name: NFS | Resolve the domain controller's canonical name
       become: true
@@ -68,15 +87,6 @@
         use_rfc2307: true
         admin_password: '{{ __nfs_test_admin_password }}'
       no_log: true
-
-    - name: NFS | Forward external DNS queries
-      become: true
-      become_user: root
-      ansible.builtin.lineinfile:
-        path: /etc/samba/smb.conf
-        insertafter: '^\[global\]'
-        regexp: '^\s*dns forwarder\s*='
-        line: '    dns forwarder = {{ ansible_facts.dns.nameservers | first }}'
 
     - name: NFS | Stop standalone Samba fixture services
       become: true
